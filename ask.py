@@ -115,7 +115,7 @@ QUESTION: {question}
 
     # 4. Call Groq API
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",   # Fast and free on Groq
+       model="llama3-8b-8192",  # Fast and free on Groq
         max_tokens=1000,
         messages=[
             {"role": "user", "content": prompt}
