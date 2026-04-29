@@ -4,7 +4,7 @@ Welcome to **PrivacyGPT** — your local AI-powered policy assistant with Slack 
 
 ## What You Need
 - Python 3.10+ installed on your computer
-- A PDF document (like an HR policy, leave policy, etc.)
+- One or more PDF documents (like HR policy, leave policy, etc.) — place them in the `resources/` folder
 - A free **Groq API key** → [console.groq.com/keys](https://console.groq.com/keys)
 - A free **Slack workspace** → [slack.com](https://slack.com) *(for Slack bot only)*
 - A free **Cloudflare Tunnel** → `brew install cloudflare/cloudflare/cloudflared` *(for Slack bot only)*
@@ -15,10 +15,12 @@ Welcome to **PrivacyGPT** — your local AI-powered policy assistant with Slack 
 
 ```
 privacygpt/
-├── ingest.py         → Load PDF into ChromaDB (run once)
+├── resources/        → 📂 Put ALL your PDF files here
+├── ingest.py         → Load all PDFs from resources/ into ChromaDB (run once)
 ├── ask.py            → Ask questions via terminal (CLI)
 ├── api.py            → FastAPI REST API (/ask, /history)
 ├── slack_bot.py      → Slack /ask command bot
+├── .env              → 🔐 Store all your API keys here (never share this file!)
 ├── requirements.txt  → All dependencies
 ├── chroma_db/        → Auto-created after running ingest.py
 └── query_logs.db     → Auto-created after running api.py
@@ -39,62 +41,70 @@ cd /path/to/privacygpt
 ### Step 2 — Install Required Packages
 ```bash
 pip install -r requirements.txt
-pip install groq
+pip install groq python-dotenv
 ```
 *(Takes 2–3 minutes the first time. Downloads ~90MB embedding model.)*
 
 ---
 
-### Step 3 — Add Your PDF
-1. Put your PDF file inside this folder
-2. Open `ingest.py` and update line 20:
-```python
-PDF_PATH = "leave_policy.pdf"   # 👈 change to your actual filename
+### Step 3 — Add Your PDFs to the `resources/` Folder
+1. Create a folder called `resources` inside the project (if not already there):
+```bash
+mkdir resources
 ```
+2. Copy **all your PDF files** into it:
+```
+privacygpt/
+└── resources/
+    ├── leave_policy.pdf
+    ├── hr_handbook.pdf
+    ├── payroll_policy.pdf
+    └── ...any other PDFs
+```
+3. `ingest.py` will automatically read **all PDFs** from this folder — no need to change any filenames in the code!
 
 ---
 
-### Step 4 — Create the Database (Ingestion)
-This makes the AI "read" your PDF and store it in a local searchable database:
+### Step 4 — Set Up Your `.env` File
+
+1. Create a file named `.env` in the root of the project:
+```bash
+touch .env
+```
+2. Open it and add your keys like this:
+```
+GROQ_API_KEY=gsk_your_key_here
+SLACK_BOT_TOKEN=xoxb_your_token_here
+SLACK_SIGNING_SECRET=your_signing_secret_here
+```
+> ⚠️ **Never share or upload your `.env` file!** Add it to `.gitignore` immediately:
+> ```bash
+> echo ".env" >> .gitignore
+> ```
+
+> 💡 All scripts (`ask.py`, `api.py`, `slack_bot.py`) will automatically read keys from `.env` using `python-dotenv`. No more `export` commands every session!
+
+---
+
+### Step 5 — Create the Database (Ingestion)
+This makes the AI "read" all PDFs in your `resources/` folder and store them in a local searchable database:
 ```bash
 python3 ingest.py
 ```
 ✅ You should see:
 ```
-📄 Loading PDF...
+📂 Found X PDF(s) in resources/
+📄 Loading leave_policy.pdf...
+   ✅ Loaded X pages
+📄 Loading hr_handbook.pdf...
    ✅ Loaded X pages
 ✂️  Splitting into chunks...
-   ✅ Created X chunks
+   ✅ Created X chunks total
 🗄️  Saving to ChromaDB...
    ✅ Saved X chunks to ChromaDB!
 🎉 Done!
 ```
-*(If you update your PDF later, just run this again!)*
-
----
-
-### Step 5 — Set Your Groq API Key
-
-**Mac/Linux:**
-```bash
-export GROQ_API_KEY="gsk_your_key_here"
-```
-
-**Windows CMD:**
-```
-set GROQ_API_KEY=gsk_your_key_here
-```
-
-**Windows PowerShell:**
-```
-$env:GROQ_API_KEY="gsk_your_key_here"
-```
-
-> 💡 **Tip:** Add this to `~/.zshrc` or `~/.bashrc` so you don't have to do it every time:
-> ```bash
-> echo 'export GROQ_API_KEY="gsk_your_key_here"' >> ~/.zshrc
-> source ~/.zshrc
-> ```
+*(Added a new PDF to `resources/`? Just run `python3 ingest.py` again!)*
 
 ---
 
@@ -146,13 +156,7 @@ curl -X POST http://localhost:8000/ask \
 4. Go to **OAuth & Permissions** → Add scopes: `chat:write`, `commands`
 5. Click **Install to Workspace** → Copy **Bot User OAuth Token** (`xoxb-...`)
 6. Go to **Basic Information** → Copy **Signing Secret**
-
-### Set Slack Environment Variables
-```bash
-export SLACK_BOT_TOKEN="xoxb_your_token_here"
-export SLACK_SIGNING_SECRET="your_signing_secret_here"
-export GROQ_API_KEY="gsk_your_key_here"
-```
+7. Paste both into your `.env` file (see Step 4)
 
 ### Terminal 1 — Start the Bot
 ```bash
@@ -201,16 +205,22 @@ Save ✅
 ## 🚨 Common Errors & Fixes
 
 **Error: `GROQ_API_KEY not set`**
-→ Run `export GROQ_API_KEY="gsk_your_key"` again. Must be done every new terminal session unless added to `~/.zshrc`.
+→ Make sure `.env` file exists and has `GROQ_API_KEY=gsk_your_key`. Also check that `python-dotenv` is installed.
+
+**Error: `resources/ folder not found`**
+→ Create the folder: `mkdir resources` and put your PDFs inside it.
+
+**Error: `No PDFs found in resources/`**
+→ Make sure your files end in `.pdf` (lowercase) and are placed directly inside the `resources/` folder.
 
 **Error: `Model not found: llama3-8b-8192`**
 → Update model name to `llama-3.1-8b-instant` in `ask.py` and `api.py`.
 
-**Error: `PDF not found`**
-→ Make sure PDF filename in `ingest.py` exactly matches your file. Check spelling and lowercase.
-
 **Error: `No module named langchain_huggingface`**
 → Run: `pip install langchain-huggingface langchain-chroma`
+
+**Error: `No module named dotenv`**
+→ Run: `pip install python-dotenv`
 
 **Error: `ssl.SSLCertVerificationError` (Mac)**
 → Run: `/Applications/Python\ 3.14/Install\ Certificates.command`
@@ -219,7 +229,7 @@ Save ✅
 → Cloudflare tunnel URL has changed. Restart tunnel → copy new URL → update Slack Request URL.
 
 **Slack: `500 Internal Server Error`**
-→ Check terminal running `slack_bot.py` for error details. Usually means API key is not set.
+→ Check that `.env` file has all 3 keys set correctly. Check terminal running `slack_bot.py` for details.
 
 ---
 
@@ -232,11 +242,12 @@ Save ✅
 | Slack App Dashboard | [api.slack.com/apps](https://api.slack.com/apps) |
 | Cloudflare Tunnel Docs | [developers.cloudflare.com/cloudflare-one/connections/connect-networks](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks) |
 | FastAPI Docs | [fastapi.tiangolo.com](https://fastapi.tiangolo.com) |
+| python-dotenv Docs | [pypi.org/project/python-dotenv](https://pypi.org/project/python-dotenv) |
 
 ---
 
 ```
-✅ Phase 1 — RAG Pipeline (PDF → ChromaDB)
+✅ Phase 1 — RAG Pipeline (PDFs in resources/ → ChromaDB)
 ✅ Phase 2 — FastAPI REST API
 ✅ Phase 3 — Slack Bot (/ask command)
 ```
