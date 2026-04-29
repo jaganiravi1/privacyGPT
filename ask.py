@@ -16,6 +16,9 @@ You need:
 """
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from groq import Groq
@@ -115,7 +118,7 @@ QUESTION: {question}
 
     # 4. Call Groq API
     response = client.chat.completions.create(
-       model="llama3-8b-8192",  # Fast and free on Groq
+       model="llama-3.1-8b-instant",  # Fast and free on Groq
         max_tokens=1000,
         messages=[
             {"role": "user", "content": prompt}

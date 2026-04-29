@@ -12,6 +12,7 @@ Run it:
 """
 
 import os
+import glob
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -22,18 +23,34 @@ from langchain_huggingface import HuggingFaceEmbeddings
 # CONFIG — change these to match your files
 # ──────────────────────────────────────────────
 
-PDF_PATH = "leave_policy.pdf"       # 👈 Put your PDF file name here
+RESOURCES_DIR = "./resources"         # 👈 Put your PDF files in this folder
 CHROMA_DIR = "./chroma_db"            # Where ChromaDB saves data on your disk
 COLLECTION_NAME = "privacy_docs"      # Just a name for your document collection
 
 # ──────────────────────────────────────────────
-# STEP 1: Load the PDF
+# STEP 1: Load the PDFs
 # ──────────────────────────────────────────────
 
-print("📄 Loading PDF...")
-loader = PyMuPDFLoader(PDF_PATH)
-pages = loader.load()
-print(f"   ✅ Loaded {len(pages)} pages from '{PDF_PATH}'")
+print("📄 Loading PDFs from resources folder...")
+pages = []
+
+if not os.path.exists(RESOURCES_DIR):
+    os.makedirs(RESOURCES_DIR)
+    print(f"   ⚠️ Created '{RESOURCES_DIR}' directory. Please add your PDF files there and run again.")
+    exit(0)
+
+pdf_files = glob.glob(os.path.join(RESOURCES_DIR, "*.pdf"))
+if not pdf_files:
+    print(f"   ⚠️ No PDF files found in '{RESOURCES_DIR}'. Please add some and run again.")
+    exit(0)
+
+for pdf_path in pdf_files:
+    loader = PyMuPDFLoader(pdf_path)
+    pdf_pages = loader.load()
+    pages.extend(pdf_pages)
+    print(f"   ✅ Loaded {len(pdf_pages)} pages from '{pdf_path}'")
+
+print(f"   ✅ Total pages loaded: {len(pages)}")
 
 # ──────────────────────────────────────────────
 # STEP 2: Split into chunks

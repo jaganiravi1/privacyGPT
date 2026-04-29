@@ -11,3 +11,4 @@ flask
 slack-bolt
 pymupdf
 langchain-text-splitters
+python-dotenv

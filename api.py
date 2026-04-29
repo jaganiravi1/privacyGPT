@@ -18,6 +18,9 @@ Test it:
 """
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 import sqlite3
 import datetime
 from fastapi import FastAPI, HTTPException
