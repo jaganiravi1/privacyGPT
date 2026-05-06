@@ -147,8 +147,19 @@ class HistoryItem(BaseModel):
 # ──────────────────────────────────────────────
 
 def run_rag(question: str) -> tuple[str, list[SourceItem]]:
-    # 1. Search ChromaDB
-    results = vectorstore.similarity_search(question, k=TOP_K)
+    # 1. Search ChromaDB (fetch more to allow deduplication)
+    raw_results = vectorstore.similarity_search(question, k=10)
+    
+    # Deduplicate results based on page content
+    results = []
+    seen_contents = set()
+    for doc in raw_results:
+        content = doc.page_content.strip()
+        if content not in seen_contents:
+            seen_contents.add(content)
+            results.append(doc)
+            if len(results) == TOP_K:
+                break
 
     if not results:
         return "I don't have enough information in the documents to answer this. Please contact the DPO.", []
@@ -163,10 +174,20 @@ def run_rag(question: str) -> tuple[str, list[SourceItem]]:
     # 3. Build sources list
     sources = []
     for i, doc in enumerate(results, 1):
+        preview_text = doc.page_content.replace("\n", " ").strip()
+        
+        # Remove trailing standalone numbers (often page number artifacts)
+        words = preview_text.split()
+        if words and words[-1].isdigit():
+            preview_text = " ".join(words[:-1])
+            
+        if len(preview_text) > 300:
+            preview_text = preview_text[:300].rsplit(' ', 1)[0] + "..."
+            
         sources.append(SourceItem(
             index=i,
             page=doc.metadata.get("page", 0),
-            preview=doc.page_content[:100].replace("\n", " ")
+            preview=preview_text
         ))
 
     # 4. Call Claude
@@ -180,16 +201,15 @@ RULES:
 
 CONTEXT:
 {context}
-
-QUESTION: {question}
-
-ANSWER (with citations):"""
+"""
 
     response = client.chat.completions.create(
       model="llama-3.1-8b-instant",  # Fast and free on Groq
         max_tokens=1000,
         messages=[
-            {"role": "user", "content": prompt}
+            #add system prompt here
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": question}
         ]
     )
 

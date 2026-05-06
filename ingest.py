@@ -13,11 +13,17 @@ Run it:
 
 import os
 import glob
+import requests
+import fitz
+from dotenv import load_dotenv
+from langchain_core.documents import Document
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
+
+load_dotenv()
 
 # ──────────────────────────────────────────────
 # CONFIG — change these to match your files
@@ -31,24 +37,44 @@ COLLECTION_NAME = "privacy_docs"      # Just a name for your document collection
 # STEP 1: Load the PDFs
 # ──────────────────────────────────────────────
 
-print("📄 Loading PDFs from resources folder...")
+print("📄 Loading PDFs from resources folder and URLs...")
 pages = []
 
 if not os.path.exists(RESOURCES_DIR):
     os.makedirs(RESOURCES_DIR)
-    print(f"   ⚠️ Created '{RESOURCES_DIR}' directory. Please add your PDF files there and run again.")
-    exit(0)
+    print(f"   ⚠️ Created '{RESOURCES_DIR}' directory. Please add your PDF files there if needed.")
 
 pdf_files = glob.glob(os.path.join(RESOURCES_DIR, "*.pdf"))
-if not pdf_files:
-    print(f"   ⚠️ No PDF files found in '{RESOURCES_DIR}'. Please add some and run again.")
-    exit(0)
 
 for pdf_path in pdf_files:
     loader = PyMuPDFLoader(pdf_path)
     pdf_pages = loader.load()
     pages.extend(pdf_pages)
     print(f"   ✅ Loaded {len(pdf_pages)} pages from '{pdf_path}'")
+
+pdf_urls = os.getenv("PDF_URLS")
+if pdf_urls:
+    urls = [url.strip() for url in pdf_urls.split(",") if url.strip()]
+    for url in urls:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            doc = fitz.open(stream=response.content, filetype="pdf")
+            url_pages = []
+            for i, page in enumerate(doc):
+                text = page.get_text()
+                url_pages.append(Document(
+                    page_content=text,
+                    metadata={"source": url, "page": i, "total_pages": len(doc)}
+                ))
+            pages.extend(url_pages)
+            print(f"   ✅ Loaded {len(url_pages)} pages from '{url}'")
+        except Exception as e:
+            print(f"   ⚠️ Warning: Failed to load '{url}': {e}")
+
+if not pages:
+    print(f"   ⚠️ No PDFs found in '{RESOURCES_DIR}' and no valid URLs provided. Please add some and run again.")
+    exit(0)
 
 print(f"   ✅ Total pages loaded: {len(pages)}")
 
