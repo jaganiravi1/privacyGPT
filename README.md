@@ -2,6 +2,12 @@
 
 Welcome to **PrivacyGPT** — your local AI-powered policy assistant with Slack integration! This guide will show you exactly how to run the project from scratch. It reads your PDFs (like company leave policies) and answers questions based *only* on those documents using the super-fast Groq AI — directly inside Slack.
 
+---
+
+![PrivacyGPT Demo](assets/demo-privacyGPT.gif)
+
+---
+
 ## What You Need
 - Python 3.10+ installed on your computer
 - One or more PDF documents (like HR policy, leave policy, etc.) — place them in the `resources/` folder
